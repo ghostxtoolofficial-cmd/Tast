@@ -15,9 +15,6 @@ RESET="\e[0m"
 mkdir -p "$CONFIG_DIR" 2>/dev/null
 mkdir -p "$SWITCH_DIR" 2>/dev/null
 
-# [NEW] ลบไฟล์เก่าที่เป็นต้นเหตุของ Error สีแดงทิ้ง
-rm -f "$CONFIG_DIR/pwf_license.py" "$CONFIG_DIR/pwf_license.pyc" 2>/dev/null
-
 if [ ! -f "$LICENSE_FILE" ]; then
     stty sane 2>/dev/null
     clear
@@ -69,40 +66,34 @@ ssh -o StrictHostKeyChecking=no -R 80:localhost:5000 serveo.net > "$CONFIG_DIR/t
 scan_apps() {
     MAX_C=$(grep "^MAX_CLONES=" "$SETTING_FILE" | cut -d'=' -f2)
     > "$CONFIG_DIR/apps.txt"
-    
     if [[ "$MAX_C" =~ ^[0-9]+$ ]]; then
         su -c 'pm list packages' | grep -i roblox | cut -d':' -f2 | tr -d '\r' | tr -d ' ' | head -n "$MAX_C" > "$CONFIG_DIR/apps.txt"
     else
         su -c 'pm list packages' | grep -i roblox | cut -d':' -f2 | tr -d '\r' | tr -d ' ' > "$CONFIG_DIR/apps.txt"
     fi
-    
     app_count=$(grep -c . "$CONFIG_DIR/apps.txt")
     if [ "$app_count" -eq 0 ]; then
         echo "com.roblox.client" > "$CONFIG_DIR/apps.txt"
     fi
 }
 
-if [ ! -f "$CONFIG_DIR/apps.txt" ]; then
-    scan_apps
-fi
+if [ ! -f "$CONFIG_DIR/apps.txt" ]; then scan_apps; fi
 
-# [NEW] เปลี่ยนมาเรียกเช็คคีย์ผ่าน main.py แทน
+# [NEW FIX] บังคับมุดเข้าโฟลเดอร์หลักก่อนรัน เพื่อให้ดึงไฟล์ใหม่ 100%
+cd "$CONFIG_DIR" || exit
 python -c "
 import sys, os
 try:
-    sys.path.append('$CONFIG_DIR')
     from main import PWFLicense
     client = PWFLicense()
-    with open('$LICENSE_FILE', 'r') as f:
+    with open('license.key', 'r') as f:
         key = f.read().strip()
     res = client.login(key)
-    if res.get('success'):
-        print('ACTIVE')
-    else:
-        print('EXPIRED')
-except Exception as e:
-    print('ERROR')
-" > "$CONFIG_DIR/key_status.txt" 2>/dev/null
+    if res.get('success'): print('ACTIVE')
+    else: print('EXPIRED')
+except Exception as e: print('ERROR')
+" > key_status.txt 2>/dev/null
+cd - > /dev/null
 
 stty sane 2>/dev/null
 
@@ -113,15 +104,8 @@ while true; do
     MAX_CLONES=$(grep "^MAX_CLONES=" "$SETTING_FILE" | cut -d'=' -f2)
     
     KEY_STATUS=$(cat "$CONFIG_DIR/key_status.txt" 2>/dev/null | tr -d '\r\n')
-    if [ -z "$KEY_STATUS" ]; then
-        KEY_STATUS="ERROR"
-    fi
-    
-    if [ "$KEY_STATUS" == "ACTIVE" ]; then
-        STATUS_COLOR=$GREEN
-    else
-        STATUS_COLOR=$RED
-    fi
+    if [ -z "$KEY_STATUS" ]; then KEY_STATUS="ERROR"; fi
+    if [ "$KEY_STATUS" == "ACTIVE" ]; then STATUS_COLOR=$GREEN; else STATUS_COLOR=$RED; fi
     
     echo -e "${CYAN}========================================${RESET}"
     echo -e "${WHITE}          Ghost X Tool Manager          ${RESET}"
@@ -147,27 +131,17 @@ while true; do
         1)
             if [ "$MODE_STATUS" == "AUTO_SWITCH" ]; then
                 if [ ! -f "$SWITCH_DIR/clone_1.txt" ]; then
-                    echo -e "\n${RED}[!] Missing AutoSwitch files.${RESET}"
-                    sleep 2
-                    continue
+                    echo -e "\n${RED}[!] Missing AutoSwitch files.${RESET}"; sleep 2; continue
                 fi
             fi
-            
-            clear
-            cd "$CONFIG_DIR" || exit
-            python -u main.py &
+            clear; cd "$CONFIG_DIR" || exit; python -u main.py &
             PY_PID=$!
-            
             echo -e "${CYAN}========================================${RESET}"
             echo -e "${GREEN}[+] SYSTEM IS RUNNING [${MODE_STATUS}]${RESET}"
             echo -e "${WHITE}[>] Press [ENTER] to stop the process.${RESET}"
             echo -e "${CYAN}========================================${RESET}\n"
-            
             read -r </dev/tty
-            
-            kill -9 $PY_PID 2>/dev/null
-            pkill -9 -f python 2>/dev/null
-            sleep 1
+            kill -9 $PY_PID 2>/dev/null; pkill -9 -f python 2>/dev/null; sleep 1
             ;;
         2|3|4|5|6|7|8|9|0)
             if [ "$opt" == "9" ] || [ "$opt" == "0" ]; then clear; exit 0; fi
@@ -179,8 +153,6 @@ while true; do
             if [ "$opt" == "7" ]; then if [ "$MODE_STATUS" == "NORMAL" ]; then sed -i "s/^MODE=.*/MODE=AUTO_SWITCH/" "$SETTING_FILE"; app_count=$(grep -c . "$CONFIG_DIR/apps.txt"); for i in $(seq 1 $app_count); do touch "$SWITCH_DIR/clone_${i}.txt"; done; else sed -i "s/^MODE=.*/MODE=NORMAL/" "$SETTING_FILE"; fi; sleep 1; fi
             if [ "$opt" == "8" ]; then if [ -f "$CONFIG_DIR/apps.txt" ]; then while IFS= read -r pkg; do if [ -n "$pkg" ]; then clean_pkg=$(echo "$pkg" | tr -d '\r' | tr -d ' '); su -c "am force-stop $clean_pkg" > /dev/null 2>&1; su -c "killall -9 $clean_pkg" > /dev/null 2>&1; fi; done < "$CONFIG_DIR/apps.txt"; fi; sleep 2; fi
             ;;
-        *)
-            sleep 1
-            ;;
+        *) sleep 1 ;;
     esac
 done
