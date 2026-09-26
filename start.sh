@@ -83,12 +83,12 @@ if [ ! -f "$CONFIG_DIR/apps.txt" ]; then
     scan_apps
 fi
 
-# เรียกเช็คคีย์ผ่าน pwf_license หรือ main.py ที่รวมร่างแล้ว
+# เรียกเช็คคีย์ผ่าน main.py (ที่รวมร่างไฟล์มาแล้ว)
 python -c "
 import sys, os
 try:
     sys.path.append('$CONFIG_DIR')
-    from pwf_license import PWFLicense
+    from main import PWFLicense
     client = PWFLicense()
     with open('$LICENSE_FILE', 'r') as f:
         key = f.read().strip()
