@@ -76,27 +76,34 @@ def resolve_clone_id(provided_id, username, cfg):
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
-    data = request.json
-    username = data.get("username") 
-    cfg = get_settings()
-    clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
-    if not clone_id: return "WAIT", 200
-    if cfg["MODE"] == "AUTO_SWITCH":
-        expected_name, _ = get_switch_data(clone_id, clients_combo_index)
-        if username and expected_name and expected_name != "Unknown" and username.lower() != expected_name.lower():
-            clients_last_seen[clone_id] = 0
-            return "MISMATCH", 200
-    clients_last_seen[clone_id] = time.time()
-    clients_retry_count[clone_id] = 0 
-    if username and username != "Unknown": clients_usernames[clone_id] = username
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        username = data.get("username") 
+        cfg = get_settings()
+        clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
+        if not clone_id: return "WAIT", 200
+        if cfg["MODE"] == "AUTO_SWITCH":
+            expected_name, _ = get_switch_data(clone_id, clients_combo_index)
+            if username and expected_name and expected_name != "Unknown" and username.lower() != expected_name.lower():
+                clients_last_seen[clone_id] = 0
+                return "MISMATCH", 200
+        clients_last_seen[clone_id] = time.time()
+        clients_retry_count[clone_id] = 0 
+        if username and username != "Unknown": clients_usernames[clone_id] = username
+    except Exception: pass
     return "OK", 200
 
 @app.route('/task_complete', methods=['POST'])
 def task_complete():
-    clone_id = resolve_clone_id(request.json.get("clone_id"), request.json.get("username"), get_settings())
-    if clone_id and get_settings()["MODE"] == "AUTO_SWITCH":
-        clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
-        clients_last_seen[clone_id] = 0 
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        username = data.get("username")
+        cfg = get_settings()
+        clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
+        if clone_id and cfg["MODE"] == "AUTO_SWITCH":
+            clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
+            clients_last_seen[clone_id] = 0 
+    except Exception: pass
     return "OK", 200
 
 def print_ui(cfg, current_time):
@@ -130,7 +137,7 @@ def auto_rejoin_checker():
         if cfg["MODE"] == "AUTO_SWITCH":
             for cid in APPS_PACKAGE_NAMES.keys():
                 acc_name, _ = get_switch_data(cid, clients_combo_index)
-                if acc_name and acc_name != "Unknown" and cid not in clients_expected_names:
+                if acc_name and acc_name != "Unknown":
                     clients_usernames[cid] = acc_name
                     clients_expected_names[cid] = acc_name.lower()
         else:
@@ -193,3 +200,4 @@ if __name__ == '__main__':
     verify_license()
     threading.Thread(target=auto_rejoin_checker, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
+        
