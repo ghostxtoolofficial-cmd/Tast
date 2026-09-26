@@ -246,8 +246,7 @@ class PWFLicense:
         result = self._post("/api/auth/logout.php", {"session_id": self.session_id, "license_key": self.license_key})
         self.session_id = None
         return result
-
-    def verify_license():
+        def verify_license():
     LICENSE_FILE = os.path.join(CONFIG_DIR, "license.key")
     if not os.path.exists(LICENSE_FILE):
         print("\033[91m [!] No License Key found!\033[0m")
