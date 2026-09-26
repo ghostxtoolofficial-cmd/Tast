@@ -247,7 +247,7 @@ class PWFLicense:
         self.session_id = None
         return result
 
-def verify_license():
+    def verify_license():
     LICENSE_FILE = os.path.join(CONFIG_DIR, "license.key")
     if not os.path.exists(LICENSE_FILE):
         print("\033[91m [!] No License Key found!\033[0m")
@@ -414,4 +414,46 @@ def auto_rejoin_checker():
             time.sleep(0.3) 
             last_seen = clients_last_seen.get(clone_id, 0)
             d_name = clients_usernames.get(clone_id, clone_id)
-            if last_seen == 0 or (curr
+            if last_seen == 0 or (current_time - last_seen) > cfg["TIMEOUT"]:
+                sys.stdout.write(f"{RED} [-] {clone_id} ({d_name}) is OFFLINE{' ' * 10}{RESET}\n")
+                offline_clones.append(clone_id)
+            else:
+                sys.stdout.write(f"{GREEN} [+] {clone_id} ({d_name}) is ONLINE{' ' * 10}{RESET}\n")
+        
+        print(f"{CYAN}----------------------------------------{RESET}")
+        action_taken = False
+        for clone_id in offline_clones:
+            retry_count = clients_retry_count.get(clone_id, 0)
+            package_name = APPS_PACKAGE_NAMES.get(clone_id)
+            if retry_count < MAX_RETRIES:
+                d_name = clients_usernames.get(clone_id, clone_id)
+                print(f"{YELLOW} [!] Recovering {clone_id} ({d_name}) (Attempt {retry_count + 1}/{MAX_RETRIES}){RESET}")
+                os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
+                time.sleep(1)
+                if cfg["MODE"] == "AUTO_SWITCH":
+                    acc_name, acc_cookie = get_switch_data(clone_id, clients_combo_index)
+                    if acc_cookie: inject_cookie(package_name, clone_id, acc_cookie)
+                
+                if cfg["MAP_ID"]: os.system(f"su -c 'am start -a android.intent.action.VIEW -d \"roblox://placeId={cfg['MAP_ID']}\" -p {package_name}' > /dev/null 2>&1")
+                else: os.system(f"su -c 'monkey -p {package_name} -c android.intent.category.LAUNCHER 1' > /dev/null 2>&1")
+                    
+                time.sleep(4) 
+                try: c_idx = int(clone_id.split('_')[1])
+                except: c_idx = 1
+                arrange_window(package_name, c_idx)
+                clients_last_seen[clone_id] = time.time() + 45 
+                clients_retry_count[clone_id] = retry_count + 1
+                action_taken = True
+                if cfg["LAUNCH_DELAY"] > 0: countdown(cfg["LAUNCH_DELAY"], f"Boot Delay ({clone_id})")
+            else:
+                print(f"{RED} [!] {clone_id} suspended for 5 mins (Max retries reached).{RESET}")
+                clients_last_seen[clone_id] = time.time() + 300 
+
+        if action_taken: print(f"{CYAN}----------------------------------------{RESET}")
+        countdown(cfg["LOOP_DELAY"], "Next system scan in")
+
+if __name__ == '__main__':
+    verify_license()
+    threading.Thread(target=auto_rejoin_checker, daemon=True).start()
+    app.run(host='0.0.0.0', port=5000, use_reloader=False)
+    
