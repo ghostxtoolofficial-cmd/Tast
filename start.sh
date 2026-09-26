@@ -15,6 +15,9 @@ RESET="\e[0m"
 mkdir -p "$CONFIG_DIR" 2>/dev/null
 mkdir -p "$SWITCH_DIR" 2>/dev/null
 
+# [NEW] ลบไฟล์เก่าที่เป็นต้นเหตุของ Error สีแดงทิ้ง
+rm -f "$CONFIG_DIR/pwf_license.py" "$CONFIG_DIR/pwf_license.pyc" 2>/dev/null
+
 if [ ! -f "$LICENSE_FILE" ]; then
     stty sane 2>/dev/null
     clear
@@ -83,7 +86,7 @@ if [ ! -f "$CONFIG_DIR/apps.txt" ]; then
     scan_apps
 fi
 
-# เรียกเช็คคีย์ผ่าน main.py (ที่รวมร่างไฟล์มาแล้ว)
+# [NEW] เปลี่ยนมาเรียกเช็คคีย์ผ่าน main.py แทน
 python -c "
 import sys, os
 try:
