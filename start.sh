@@ -79,7 +79,6 @@ scan_apps() {
 
 if [ ! -f "$CONFIG_DIR/apps.txt" ]; then scan_apps; fi
 
-# [NEW FIX] บังคับมุดเข้าโฟลเดอร์หลักก่อนรัน เพื่อให้ดึงไฟล์ใหม่ 100%
 cd "$CONFIG_DIR" || exit
 python -c "
 import sys, os
@@ -126,6 +125,9 @@ while true; do
     echo -e " [9] Exit"
     echo -e "${CYAN}========================================${RESET}"
     read -p " Select Option: " opt </dev/tty
+    
+    # [NEW FIX] ลบช่องว่างและปุ่ม Enter ที่ซ่อนอยู่ทิ้งไป
+    opt=$(echo "$opt" | tr -d ' \r')
 
     case $opt in
         1)
@@ -146,8 +148,8 @@ while true; do
         2|3|4|5|6|7|8|9|0)
             if [ "$opt" == "9" ] || [ "$opt" == "0" ]; then clear; exit 0; fi
             if [ "$opt" == "2" ]; then scan_apps; sleep 1; fi
-            if [ "$opt" == "3" ]; then read -p " Enter New Map ID: " in_map </dev/tty; sed -i "s/^MAP_ID=.*/MAP_ID=$in_map/" "$SETTING_FILE"; sleep 1; fi
-            if [ "$opt" == "4" ]; then read -p " Enter max screens (Number or ALL): " in_clones </dev/tty; if [ -n "$in_clones" ]; then sed -i "s/^MAX_CLONES=.*/MAX_CLONES=$in_clones/" "$SETTING_FILE"; scan_apps; fi; sleep 1; fi
+            if [ "$opt" == "3" ]; then read -p " Enter New Map ID: " in_map </dev/tty; in_map=$(echo "$in_map" | tr -d ' \r'); sed -i "s/^MAP_ID=.*/MAP_ID=$in_map/" "$SETTING_FILE"; sleep 1; fi
+            if [ "$opt" == "4" ]; then read -p " Enter max screens (Number or ALL): " in_clones </dev/tty; in_clones=$(echo "$in_clones" | tr -d ' \r'); if [ -n "$in_clones" ]; then sed -i "s/^MAX_CLONES=.*/MAX_CLONES=$in_clones/" "$SETTING_FILE"; scan_apps; fi; sleep 1; fi
             if [ "$opt" == "5" ]; then app_count=$(grep -c . "$CONFIG_DIR/apps.txt"); > "$COOKIE_FILE"; for i in $(seq 1 $app_count); do pkg=$(sed -n "${i}p" "$CONFIG_DIR/apps.txt"); echo -e "\n${WHITE}[Clone $i : $pkg]${RESET}"; read -p " Paste Cookie: " cookie_data </dev/tty; echo "$cookie_data">> "$COOKIE_FILE"; done; sleep 2; fi
             if [ "$opt" == "6" ]; then nano "$COOKIE_FILE"; clear; sleep 1; fi
             if [ "$opt" == "7" ]; then if [ "$MODE_STATUS" == "NORMAL" ]; then sed -i "s/^MODE=.*/MODE=AUTO_SWITCH/" "$SETTING_FILE"; app_count=$(grep -c . "$CONFIG_DIR/apps.txt"); for i in $(seq 1 $app_count); do touch "$SWITCH_DIR/clone_${i}.txt"; done; else sed -i "s/^MODE=.*/MODE=NORMAL/" "$SETTING_FILE"; fi; sleep 1; fi
