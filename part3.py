@@ -8,19 +8,6 @@ import json
 from flask import Flask, request
 
 def verify_license():
-    LICENSE_FILE = os.path.join(CONFIG_DIR, "license.key")
-    if not os.path.exists(LICENSE_FILE):
-        print("\n\033[91m[!] Error: ไม่พบไฟล์ license.key กรุณารันระบบผ่าน start.sh\033[0m")
-        sys.exit(1)
-    with open(LICENSE_FILE, "r") as f: user_key = f.read().strip()
-    client = PWFLicense()
-    result = client.login(user_key)
-    if not result.get("success"):
-        if os.path.exists(LICENSE_FILE): os.remove(LICENSE_FILE)
-        print("\n\033[91m[!] Error: License Key ของคุณหมดอายุ หรือไม่ถูกต้อง!\033[0m")
-        sys.exit(1)
-    def on_revoked(code, message): os._exit(0)
-    threading.Thread(target=client.run_heartbeat, args=(on_revoked,), daemon=True).start()
     return True
 
 os.environ.pop('WERKZEUG_RUN_MAIN', None)
@@ -71,16 +58,7 @@ def fetch_roblox_name(cookie_str):
 
 def resolve_clone_id(provided_id, username, cfg):
     if provided_id != "auto": return provided_id
-    if not username or username == "Unknown": return None
-    uname_lower = username.lower()
-    for cid, exp_name in clients_expected_names.items():
-        if exp_name == uname_lower: return cid
-    for cid, uname in clients_usernames.items():
-        if uname.lower() == uname_lower and uname != cid: return cid
-    curr = time.time()
-    for cid in APPS_PACKAGE_NAMES.keys():
-        seen = clients_last_seen.get(cid, 0)
-        if seen == 0 or (curr - seen) > cfg["TIMEOUT"]: return cid
+    if not username or username == "Unknown": return list(APPS_PACKAGE_NAMES.keys())[0]
     return list(APPS_PACKAGE_NAMES.keys())[0]
 
 @app.route('/heartbeat', methods=['POST'])
@@ -103,11 +81,11 @@ def task_complete():
         data = request.get_json(force=True, silent=True) or {}
         username = data.get("username")
         cfg = get_settings()
-        clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
-        if clone_id and cfg["MODE"] == "AUTO_SWITCH":
-            print(f"\n{GREEN}[+] Lua Signal Received! Account {username} finished. Switching instantly...{RESET}")
-            clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
-            clients_last_seen[clone_id] = 0
+        if cfg["MODE"] == "AUTO_SWITCH":
+            print(f"\n{GREEN}[+] Lua Signal Received! Switching to next account instantly...{RESET}")
+            for cid in APPS_PACKAGE_NAMES.keys():
+                clients_combo_index[cid] = clients_combo_index.get(cid, 0) + 1
+                clients_last_seen[cid] = 0  # สั่งรีเซ็ตสถานะเพื่อบังคับเปลี่ยนไอดีและดึงคุกกี้บรรทัดถัดไปทันที
     except Exception: pass
     return "OK", 200
 
@@ -138,11 +116,10 @@ def auto_rejoin_checker():
                 retry_count = clients_retry_count.get(clone_id, 0)
                 if retry_count < MAX_RETRIES:
                     os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
-                    
                     time.sleep(2) 
                     
                     if cfg["MODE"] == "AUTO_SWITCH":
-                        sys.stdout.write(f"{YELLOW} [>] Pre-checking account data for {clone_id}...{RESET}\n")
+                        sys.stdout.write(f"{YELLOW} [>] Pre-checking account data for {clone_id} (Index: {clients_combo_index.get(clone_id, 0)})...{RESET}\n")
                         acc_name, acc_cookie = get_switch_data(clone_id, clients_combo_index)
                         
                         if acc_cookie:
