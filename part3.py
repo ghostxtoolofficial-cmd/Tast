@@ -1,3 +1,16 @@
+import os
+import sys
+import time
+import threading
+import logging
+import urllib.request
+import json
+from flask import Flask, request
+
+# ดึงฟังก์ชันและตัวแปรที่จำเป็นมาจาก part1 และ part2
+from part1 import load_apps, get_settings, get_switch_data, inject_cookie, CONFIG_DIR
+from part2 import PWFLicense
+
 def verify_license():
     LICENSE_FILE = os.path.join(CONFIG_DIR, "license.key")
     if not os.path.exists(LICENSE_FILE):
@@ -169,4 +182,4 @@ if __name__ == '__main__':
     verify_license()
     threading.Thread(target=auto_rejoin_checker, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
-                            
+    
