@@ -82,11 +82,6 @@ def heartbeat():
         cfg = get_settings()
         clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
         if not clone_id: return "WAIT", 200
-        if cfg["MODE"] == "AUTO_SWITCH":
-            expected_name, _ = get_switch_data(clone_id, clients_combo_index)
-            if username and expected_name and expected_name != "Unknown" and username.lower() != expected_name.lower():
-                clients_last_seen[clone_id] = 0
-                return "MISMATCH", 200
         clients_last_seen[clone_id] = time.time()
         clients_retry_count[clone_id] = 0 
         if username and username != "Unknown": clients_usernames[clone_id] = username
@@ -101,103 +96,78 @@ def task_complete():
         cfg = get_settings()
         clone_id = resolve_clone_id(data.get("clone_id"), username, cfg)
         if clone_id and cfg["MODE"] == "AUTO_SWITCH":
+            print(f"\n{GREEN}[+] Lua Signal Received! Account {username} finished. Switching instantly...{RESET}")
             clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
-            clients_last_seen[clone_id] = 0 
+            clients_last_seen[clone_id] = 0 # Force instant restart
     except Exception: pass
     return "OK", 200
 
 def print_ui(cfg, current_time):
     sys.stdout.write(f"\033[H\033[J")
     print(f"{CYAN}========================================{RESET}")
-    print(f"{WHITE}             SYSTEM STATUS              {RESET}")
+    print(f"{WHITE}         GHOST X - FAST SWITCH          {RESET}")
     print(f"{CYAN}========================================{RESET}")
-    online_count = sum(1 for cid in APPS_PACKAGE_NAMES if clients_last_seen.get(cid, 0) != 0 and (current_time - clients_last_seen[cid]) <= cfg["TIMEOUT"])
-    print(f" [Active Clones] : {WHITE}{online_count} / {len(APPS_PACKAGE_NAMES)}{RESET}")
-    print(f"{CYAN}----------------------------------------{RESET}")
     for cid in APPS_PACKAGE_NAMES.keys():
         l_seen = clients_last_seen.get(cid, 0)
         d_name = clients_usernames.get(cid, cid)
-        if l_seen == 0 or (current_time - l_seen) > cfg["TIMEOUT"]: print(f"{RED} [-] {d_name} : OFFLINE{RESET}")
+        if l_seen == 0 or (current_time - l_seen) > cfg["TIMEOUT"]: print(f"{RED} [-] {d_name} : OFFLINE / SWITCHING...{RESET}")
         else: print(f"{GREEN} [+] {d_name} : ONLINE{RESET}")
     print(f"{CYAN}========================================{RESET}\n")
-
-def countdown(t, msg):
-    for i in range(t, 0, -1):
-        sys.stdout.write(f"\r{YELLOW} [>] {msg} : {i}s remaining...{RESET}   ")
-        sys.stdout.flush()
-        time.sleep(1)
-    sys.stdout.write(f"\r{' ' * 50}\r") 
-    sys.stdout.flush()
 
 def auto_rejoin_checker():
     time.sleep(1) 
     while True:
         current_time = time.time()
         cfg = get_settings()
-        if cfg["MODE"] == "AUTO_SWITCH":
-            for cid in APPS_PACKAGE_NAMES.keys():
-                acc_name, _ = get_switch_data(cid, clients_combo_index)
-                if acc_name and acc_name != "Unknown":
-                    clients_usernames[cid] = acc_name
-                    clients_expected_names[cid] = acc_name.lower()
-        else:
-            cookie_file = os.path.join(CONFIG_DIR, "cookie.txt")
-            if os.path.exists(cookie_file):
-                with open(cookie_file, "r") as f: cookies = f.read().splitlines()
-                for i, cid in enumerate(APPS_PACKAGE_NAMES.keys()):
-                    if i < len(cookies) and cookies[i].strip() and cid not in clients_expected_names:
-                        sys.stdout.write(f"\r{WHITE} [>] Fetching API profile for {cid}...{' ' * 10}\r")
-                        sys.stdout.flush()
-                        uname = fetch_roblox_name(cookies[i])
-                        if uname:
-                            clients_usernames[cid] = uname
-                            clients_expected_names[cid] = uname.lower()
         print_ui(cfg, current_time)
-        sys.stdout.write(f"{WHITE} [>] Initiating system scan...{RESET}\n")
-        time.sleep(0.5)
-        offline_clones = []
+        
         for clone_id in APPS_PACKAGE_NAMES.keys():
-            sys.stdout.write(f"\r{WHITE} [>] Verifying {clone_id}...{' ' * 10}\r")
-            sys.stdout.flush()
-            time.sleep(0.3) 
             last_seen = clients_last_seen.get(clone_id, 0)
-            d_name = clients_usernames.get(clone_id, clone_id)
-            if last_seen == 0 or (current_time - last_seen) > cfg["TIMEOUT"]:
-                sys.stdout.write(f"{RED} [-] {clone_id} ({d_name}) is OFFLINE{' ' * 10}{RESET}\n")
-                offline_clones.append(clone_id)
-            else:
-                sys.stdout.write(f"{GREEN} [+] {clone_id} ({d_name}) is ONLINE{' ' * 10}{RESET}\n")
-        print(f"{CYAN}----------------------------------------{RESET}")
-        action_taken = False
-        for clone_id in offline_clones:
-            retry_count = clients_retry_count.get(clone_id, 0)
             package_name = APPS_PACKAGE_NAMES.get(clone_id)
-            if retry_count < MAX_RETRIES:
-                d_name = clients_usernames.get(clone_id, clone_id)
-                print(f"{YELLOW} [!] Recovering {clone_id} ({d_name}) (Attempt {retry_count + 1}/{MAX_RETRIES}){RESET}")
-                os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
-                time.sleep(1)
-                if cfg["MODE"] == "AUTO_SWITCH":
-                    acc_name, acc_cookie = get_switch_data(clone_id, clients_combo_index)
-                    if acc_cookie: inject_cookie(package_name, clone_id, acc_cookie)
-                if cfg["MAP_ID"]: os.system(f"su -c 'am start -a android.intent.action.VIEW -d \"roblox://placeId={cfg['MAP_ID']}\" -p {package_name}' > /dev/null 2>&1")
-                else: os.system(f"su -c 'monkey -p {package_name} -c android.intent.category.LAUNCHER 1' > /dev/null 2>&1")
-                time.sleep(4) 
-                try: c_idx = int(clone_id.split('_')[1])
-                except: c_idx = 1
-                arrange_window(package_name, c_idx)
-                clients_last_seen[clone_id] = time.time() + 45 
-                clients_retry_count[clone_id] = retry_count + 1
-                action_taken = True
-                if cfg["LAUNCH_DELAY"] > 0: countdown(cfg["LAUNCH_DELAY"], f"Boot Delay ({clone_id})")
-            else:
-                print(f"{RED} [!] {clone_id} suspended for 5 mins.{RESET}")
-                clients_last_seen[clone_id] = time.time() + 300 
-        if action_taken: print(f"{CYAN}----------------------------------------{RESET}")
-        countdown(cfg["LOOP_DELAY"], "Next system scan in")
+            
+            # ถ้าแอปดับ หรือหมดเวลา (หรือ Lua สั่งเปลี่ยนตัว last_seen จะเป็น 0 ทันที)
+            if last_seen == 0 or (current_time - last_seen) > cfg["TIMEOUT"]:
+                retry_count = clients_retry_count.get(clone_id, 0)
+                if retry_count < MAX_RETRIES:
+                    os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
+                    
+                    if cfg["MODE"] == "AUTO_SWITCH":
+                        sys.stdout.write(f"{YELLOW} [>] Pre-checking account data for {clone_id}...{RESET}\n")
+                        acc_name, acc_cookie = get_switch_data(clone_id, clients_combo_index)
+                        
+                        if acc_cookie:
+                            # 1. ยิง API เช็คคุกกี้ก่อนเข้าเกม
+                            api_name = fetch_roblox_name(acc_cookie)
+                            if not api_name:
+                                print(f"{RED} [!] Dead Cookie detected. Skipping to next account instantly.{RESET}")
+                                clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
+                                clients_last_seen[clone_id] = 0
+                                continue # วนลูปข้ามไปบรรทัดถัดไปทันที
+                            
+                            # 2. คุกกี้ผ่าน เอาชื่อจาก API มารอไว้เลย
+                            clients_usernames[clone_id] = api_name
+                            clients_expected_names[clone_id] = api_name.lower()
+                            print(f"{GREEN} [+] Injecting valid cookie for: {api_name}{RESET}")
+                            inject_cookie(package_name, clone_id, acc_cookie)
+                    
+                    if cfg["MAP_ID"]: os.system(f"su -c 'am start -a android.intent.action.VIEW -d \"roblox://placeId={cfg['MAP_ID']}\" -p {package_name}' > /dev/null 2>&1")
+                    else: os.system(f"su -c 'monkey -p {package_name} -c android.intent.category.LAUNCHER 1' > /dev/null 2>&1")
+                    
+                    time.sleep(4) 
+                    try: c_idx = int(clone_id.split('_')[1])
+                    except: c_idx = 1
+                    arrange_window(package_name, c_idx)
+                    clients_last_seen[clone_id] = time.time() + 30 # ให้เวลาเกมโหลด 30 วิ ก่อนเช็คใหม่
+                    clients_retry_count[clone_id] = retry_count + 1
+                else:
+                    print(f"{RED} [!] {clone_id} max retries reached. Suspending.{RESET}")
+                    clients_last_seen[clone_id] = time.time() + 300 
+        
+        # ลด Loop Delay ลงเหลือ 1 วินาที เพื่อให้มันรับคำสั่งจาก Lua ได้ไวระดับเสี้ยววินาที
+        time.sleep(1)
 
 if __name__ == '__main__':
     verify_license()
     threading.Thread(target=auto_rejoin_checker, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
-        
+    
