@@ -125,26 +125,26 @@ def auto_rejoin_checker():
             last_seen = clients_last_seen.get(clone_id, 0)
             package_name = APPS_PACKAGE_NAMES.get(clone_id)
             
-            # ถ้าแอปดับ หรือหมดเวลา (หรือ Lua สั่งเปลี่ยนตัว last_seen จะเป็น 0 ทันที)
             if last_seen == 0 or (current_time - last_seen) > cfg["TIMEOUT"]:
                 retry_count = clients_retry_count.get(clone_id, 0)
                 if retry_count < MAX_RETRIES:
                     os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
+                    
+                    # [FIX] เพิ่มเวลาหน่วง 2 วินาที คืนมา เพื่อให้ Android คายล็อกไฟล์ SQLite ก่อนเจาะคุกกี้
+                    time.sleep(2) 
                     
                     if cfg["MODE"] == "AUTO_SWITCH":
                         sys.stdout.write(f"{YELLOW} [>] Pre-checking account data for {clone_id}...{RESET}\n")
                         acc_name, acc_cookie = get_switch_data(clone_id, clients_combo_index)
                         
                         if acc_cookie:
-                            # 1. ยิง API เช็คคุกกี้ก่อนเข้าเกม
                             api_name = fetch_roblox_name(acc_cookie)
                             if not api_name:
                                 print(f"{RED} [!] Dead Cookie detected. Skipping to next account instantly.{RESET}")
                                 clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
                                 clients_last_seen[clone_id] = 0
-                                continue # วนลูปข้ามไปบรรทัดถัดไปทันที
+                                continue 
                             
-                            # 2. คุกกี้ผ่าน เอาชื่อจาก API มารอไว้เลย
                             clients_usernames[clone_id] = api_name
                             clients_expected_names[clone_id] = api_name.lower()
                             print(f"{GREEN} [+] Injecting valid cookie for: {api_name}{RESET}")
@@ -157,17 +157,16 @@ def auto_rejoin_checker():
                     try: c_idx = int(clone_id.split('_')[1])
                     except: c_idx = 1
                     arrange_window(package_name, c_idx)
-                    clients_last_seen[clone_id] = time.time() + 30 # ให้เวลาเกมโหลด 30 วิ ก่อนเช็คใหม่
+                    clients_last_seen[clone_id] = time.time() + 30 
                     clients_retry_count[clone_id] = retry_count + 1
                 else:
                     print(f"{RED} [!] {clone_id} max retries reached. Suspending.{RESET}")
                     clients_last_seen[clone_id] = time.time() + 300 
         
-        # ลด Loop Delay ลงเหลือ 1 วินาที เพื่อให้มันรับคำสั่งจาก Lua ได้ไวระดับเสี้ยววินาที
         time.sleep(1)
 
 if __name__ == '__main__':
     verify_license()
     threading.Thread(target=auto_rejoin_checker, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, use_reloader=False)
-    
+                            
