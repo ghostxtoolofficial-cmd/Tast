@@ -7,10 +7,6 @@ import urllib.request
 import json
 from flask import Flask, request
 
-# ดึงฟังก์ชันและตัวแปรที่จำเป็นมาจาก part1 และ part2
-from part1 import load_apps, get_settings, get_switch_data, inject_cookie, CONFIG_DIR
-from part2 import PWFLicense
-
 def verify_license():
     LICENSE_FILE = os.path.join(CONFIG_DIR, "license.key")
     if not os.path.exists(LICENSE_FILE):
@@ -111,7 +107,7 @@ def task_complete():
         if clone_id and cfg["MODE"] == "AUTO_SWITCH":
             print(f"\n{GREEN}[+] Lua Signal Received! Account {username} finished. Switching instantly...{RESET}")
             clients_combo_index[clone_id] = clients_combo_index.get(clone_id, 0) + 1
-            clients_last_seen[clone_id] = 0 # Force instant restart
+            clients_last_seen[clone_id] = 0
     except Exception: pass
     return "OK", 200
 
@@ -143,7 +139,6 @@ def auto_rejoin_checker():
                 if retry_count < MAX_RETRIES:
                     os.system(f"su -c 'am force-stop {package_name}' > /dev/null 2>&1")
                     
-                    # [FIX] เพิ่มเวลาหน่วง 2 วินาที คืนมา เพื่อให้ Android คายล็อกไฟล์ SQLite ก่อนเจาะคุกกี้
                     time.sleep(2) 
                     
                     if cfg["MODE"] == "AUTO_SWITCH":
