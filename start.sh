@@ -3,7 +3,6 @@ CONFIG_DIR="/storage/emulated/0/Ghost X Tool Manager"
 SWITCH_DIR="$CONFIG_DIR/AutoSwitch"
 SETTING_FILE="$CONFIG_DIR/Setting.txt"
 COOKIE_FILE="$CONFIG_DIR/cookie.txt"
-LICENSE_FILE="$CONFIG_DIR/license.key"
 
 GREEN="\e[32m"
 RED="\e[31m"
@@ -12,33 +11,27 @@ WHITE="\e[97m"
 YELLOW="\e[93m"
 RESET="\e[0m"
 
-mkdir -p "$CONFIG_DIR" 2>/dev/null
-mkdir -p "$SWITCH_DIR" 2>/dev/null
-
-if [ ! -f "$LICENSE_FILE" ]; then
-    stty sane 2>/dev/null
-    clear
-    echo -e "${CYAN}========================================${RESET}"
-    echo -e "${WHITE}           GHOST X HUB - AUTH           ${RESET}"
-    echo -e "${CYAN}========================================${RESET}"
-    read -p " [?] Enter License Key: " INPUT_KEY </dev/tty
-    
-    if [ -z "$INPUT_KEY" ]; then
-        echo -e "\n${RED} [!] Key cannot be empty! Exiting...${RESET}"
-        exit 1
-    fi
-    
-    echo "$INPUT_KEY"> "$LICENSE_FILE"
-    echo -e "${GREEN} [+] Key saved. Loading system...${RESET}"
-    sleep 1
-fi
-
+# ==========================================
+# [1] ระบบเตรียม Library (ติดตั้งอัตโนมัติถ้ายังไม่มี)
+# ==========================================
 clear
 echo -e "${CYAN}========================================${RESET}"
-echo -e "${WHITE}      INITIALIZING GHOST X SYSTEM       ${RESET}"
+echo -e "${WHITE}      CHECKING & INSTALLING LIBS        ${RESET}"
 echo -e "${CYAN}========================================${RESET}"
+if ! command -v python &> /dev/null; then
+    echo -e "${YELLOW}[*] Installing Python & System Packages...${RESET}"
+    pkg update -y && pkg install python rust libffi openssl sqlite -y
+fi
+if ! python -c "import flask" &> /dev/null; then
+    echo -e "${YELLOW}[*] Installing Python Libraries (Flask, Requests)...${RESET}"
+    pip install requests flask cryptography --only-binary=:all:
+fi
 
-sleep 1
+# ==========================================
+# [2] สร้างโฟลเดอร์ตั้งค่าระบบ
+# ==========================================
+mkdir -p "$CONFIG_DIR" 2>/dev/null
+mkdir -p "$SWITCH_DIR" 2>/dev/null
 
 if [ ! -f "$SETTING_FILE" ]; then
     echo "MODE=NORMAL" > "$SETTING_FILE"
@@ -54,6 +47,7 @@ else
     fi
 fi
 
+# เคลียร์พอร์ตและโปรแกรมเก่าที่ค้างอยู่
 kill -9 $(lsof -t -i:5000) 2>/dev/null
 su -c 'kill -9 $(lsof -t -i:5000)' 2>/dev/null
 fuser -k -9 5000/tcp 2>/dev/null
@@ -61,6 +55,7 @@ pkill -9 -f python
 killall -9 ssh 2>/dev/null
 rm -f "$CONFIG_DIR/tunnel.log"
 
+# เปิด Serveo Tunnel (เจาะอุโมงค์)
 ssh -o StrictHostKeyChecking=no -R 80:localhost:5000 serveo.net > "$CONFIG_DIR/tunnel.log" 2>&1 &
 
 scan_apps() {
@@ -78,33 +73,20 @@ scan_apps() {
 }
 
 if [ ! -f "$CONFIG_DIR/apps.txt" ]; then scan_apps; fi
-
-cd "$CONFIG_DIR" || exit
-python -c "
-import sys, os
-try:
-    from main import PWFLicense
-    client = PWFLicense()
-    with open('license.key', 'r') as f:
-        key = f.read().strip()
-    res = client.login(key)
-    if res.get('success'): print('ACTIVE')
-    else: print('EXPIRED')
-except Exception as e: print('ERROR')
-" > key_status.txt 2>/dev/null
-cd - > /dev/null
-
 stty sane 2>/dev/null
 
+# ==========================================
+# [3] หน้าต่างเมนูหลัก (ลบระบบตรวจสอบ Key ทิ้งแล้ว)
+# ==========================================
 while true; do
     clear
     MODE_STATUS=$(grep "^MODE=" "$SETTING_FILE" | cut -d'=' -f2)
     MAP_ID=$(grep "^MAP_ID=" "$SETTING_FILE" | cut -d'=' -f2)
     MAX_CLONES=$(grep "^MAX_CLONES=" "$SETTING_FILE" | cut -d'=' -f2)
     
-    KEY_STATUS=$(cat "$CONFIG_DIR/key_status.txt" 2>/dev/null | tr -d '\r\n')
-    if [ -z "$KEY_STATUS" ]; then KEY_STATUS="ERROR"; fi
-    if [ "$KEY_STATUS" == "ACTIVE" ]; then STATUS_COLOR=$GREEN; else STATUS_COLOR=$RED; fi
+    # บังคับสถานะเป็น ACTIVE ตลอดเวลาเพื่อความสบายใจ
+    KEY_STATUS="ACTIVE (UNLOCKED)"
+    STATUS_COLOR=$GREEN
     
     echo -e "${CYAN}========================================${RESET}"
     echo -e "${WHITE}          Ghost X Tool Manager          ${RESET}"
@@ -126,7 +108,6 @@ while true; do
     echo -e "${CYAN}========================================${RESET}"
     read -p " Select Option: " opt </dev/tty
     
-    # [NEW FIX] ลบช่องว่างและปุ่ม Enter ที่ซ่อนอยู่ทิ้งไป
     opt=$(echo "$opt" | tr -d ' \r')
 
     case $opt in
