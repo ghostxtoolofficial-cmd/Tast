@@ -1,68 +1,35 @@
-repeat task.wait() until game:IsLoaded()
-getgenv().AA_CONFIG = {
-
-    ------------------------------------------------------------
-    -- ★ เลือกโหมด
-    ------------------------------------------------------------
-    -- 1 = ฟาร์มเพชร   : ไต่ด่าน Act 1-6 ไปเรื่อยๆ แล้วฟาร์ม Infinite ยาว
-    -- 2 = ฟาร์มอีเวนต์ : ลง Summer Hunt กับคนอื่น (ได้ SummerPearls)
-    -- 3 = ลงดัน       : ใช้ Dungeon Run Key ลงดันวนไป (ไม่มีคีย์ = เล่นด่านปกติรอ)
-    Mode = 1,
-
-    ------------------------------------------------------------
-    -- ★ Auto DONE (ให้ตัวรีจอยสลับไอดี — Horst / Masterp / Storm)
-    ------------------------------------------------------------
-    AUTO_DONE = true,      -- true = เปิด / false = ปิด
-    DONE_LEVEL = 40,        -- เลเวลถึงเท่านี้แล้ว DONE
-    DONE_GEMS = 0,          -- เพชรถึงเท่านี้แล้ว DONE  เช่น 50000
-
-    ------------------------------------------------------------
-    -- ★ โหมด 1: ฟาร์มเพชร
-    ------------------------------------------------------------
-    LAST_WORLD = "aot",             -- ไต่ด่านถึงโลกนี้แล้วหยุด
-                                    --   "namek" = Planet Greenie, "aot" = Walled City
-    FINAL_FARM = "aot",  -- ไต่ครบแล้วฟาร์มด่านนี้ยาว
-    HARD_CLIMB = false,              -- ไต่ระดับ Hard ด้วย (true / false)
-
-    -- ด่าน Infinite: ถึงเวฟนี้ขายตัวทิ้งทั้งหมด ให้แพ้ไวแล้วเริ่มรอบใหม่ (เก็บเพชรไว)
-    INF_SELL_WAVE = 16,      -- 0 = ไม่ขาย เล่นจนแพ้เอง  เช่น 15
-
-    -- เล่นด่านเดียววนไปเรื่อยๆ ("" = ไต่ด่านปกติ)
-    -- รายชื่อด่าน (เลขท้าย 1-6 = Act 1-6):
-    --   Planet Greenie : "namek_level_1" ถึง "namek_level_6"
-    --                    "namek_infinite"  = Infinite
-    --   Walled City    : "aot_level_1" ถึง "aot_level_6"
-    --   Snowy Town     : "demonslayer_level_1" ถึง "demonslayer_level_6"
-    --   Sand Village   : "naruto_level_1" ถึง "naruto_level_6"
-    --   Navy Bay       : "marineford_level_1" ถึง "marineford_level_6"
-    --   Fiend City     : "tokyoghoul_level_1" ถึง "tokyoghoul_level_6"
-    STAGE = "",
-    STAGE_DIFF = "Normal",  -- "Normal" / "Hard"
-
-    ------------------------------------------------------------
-    -- ★ โหมด 2: อีเวนต์ Summer Hunt
-    ------------------------------------------------------------
-    Event = {
-        Matchmaking = false,     -- true = ลงกับคนอื่น (กรอก Captcha เอง) / false = ลงคนเดียว
-        Card = "coins",         -- การ์ด: "coins" เน้นเหรียญ / "safe" เน้นรอด
-        NoCurseWave = 0,        -- ถึงเวฟนี้เลิกรับการ์ดคำสาป (0 = รับตลอด)  เช่น 20
-
-        Coins = "summon",       -- "summon" = สุ่มตู้ Icy Star Capsule เอง / "keep" = เก็บ Pearls ไว้
-        CoinsSummonAt = 10000,   -- Pearls ถึงเท่านี้แล้วกลับไปสุ่ม (1500 = สุ่ม x10)
-    },
-
-    ------------------------------------------------------------
-    -- ★ ตั้งค่า (true = เปิด / false = ปิด)
-    ------------------------------------------------------------
-    Settings = {
-        autoPlace = true,       -- วางตัว
-        autoUpgrade = true,     -- อัปตัว
-        autoSkip = true,        -- ข้ามเวฟ
-        autoReplay = true,      -- จบรอบเล่นต่อ
-        autoSummon = true,      -- สุ่มตัว
-        codes = false,           -- ใส่โค้ด
-        whiteScreen = false,    -- จอขาว (ลดเครื่องร้อน)
-    },
+getgenv().Configuration = {
+    ["Mode"]                   = "Gem",        -- Event | Story | Event (Fool's Hunt with the Honey method)
+    ["Event Join By"]          = "Matchmaking",  -- Matchmaking (queue with others, solo when no team comes) | Solo
+    ["Event getgenv Wait"] = 90,             -- seconds in the queue before going solo
+    ["Event Summon"]           = true,           -- after every match: back to the lobby, spin the event banner with its coins
+    ["Event Keep Coins"]       = 0,              -- never spin below this many event coins
+    ["Equip Event Units"]      = true,           -- equip every event banner unit you own instead of Equip Best (coin boost)
+    ["Event Farms"]            = 5,              -- C.E.O. / Bulby to place, 5-6; 3 placements stay for Honey, the rest kill
+    ["Event Idols"]            = 1,              -- Idols to place (cheaper placing and upgrading)
+    ["Event Cards"]            = { "Attack", "Attack Speed", "Yen", "Event Currency", "Boss Damage", "Range", "Random Blessings",
+        "Ability Cooldown", "Secret Drop Rate", "Spellproof Enemies", "Unit Cost", "Enemy Regen", "Enemy Shield",
+        "Enemy Passives", "Explosive Deaths", "Enemy Health", "Random Curses", "Enemy Speed", "Plated Enemies",
+        "Resistant Enemies", "New Path" },       -- card vote order, top first
+    ["Wanted Units"]           = {},             -- e.g. { "speedwagon" }, summoned with gems
+    ["Banner"]                 = "EventClover",  -- EventClover | Legacy, the banner Wanted Units are summoned on
+    ["Summon"]                 = "Gems x10",     -- Gems x1 | Gems x10
+    ["Keep Gems"]              = 0,              -- never summon below this many gems
+    ["Auto Sell Rarities"]     = { "Rare", "Epic" }, -- the game's auto-sell for summons, so event spins don't fill storage
+    ["Auto Claim"]             = false,           -- daily reward, battle pass, quests, missions, level rewards
+    ["Codes"]                  = {},             -- redeemed once per lobby server, e.g. { "CODE1", "CODE2" }
+    ["Place Point"]            = 50,             -- % along the enemy path: 0 = enemy spawn, 100 = your base
+    ["Auto Upgrade"]           = true,
+    ["Auto Abilities"]         = true,
+    ["Auto Skip Waves"]        = true,
+    ["When Done"]              = "Stay",         -- Stay | Kick
+    ["White Screen"]           = false,          -- no black status screen
+    ["FPS Lock"]               = ,             -- cap FPS, 0 = off
+    ["Delete Enemies"]         = false,
+    ["Delete Map"]             = false,
+    ["Boost FPS"]              = true,           -- matches only: strip lighting, shadows, glow, particles, decals, textures
+    ["Horst"]                  = true,           -- report progress to Horst, at most once a minute (needs Horst's script)
+    ["Webhook"]                = "7",             -- Discord webhook URL
 }
-
-loadstring(game:HttpGet("https://hamsterdiwa.com/loader/animeadv"))()
+_G.Authorize = "QUJsHCeVcgghVmfYkXvomROJJoBALnKa"
+loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/beeedd27df16c4072f12728f48439121.lua"))()
