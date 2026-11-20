@@ -21,7 +21,7 @@ getgenv().AA_CONFIG = {
     ------------------------------------------------------------
     LAST_WORLD = "aot",             -- ไต่ด่านถึงโลกนี้แล้วหยุด
                                     --   "namek" = Planet Greenie, "aot" = Walled City
-    FINAL_FARM = "namek_infinite",  -- ไต่ครบแล้วฟาร์มด่านนี้ยาว
+    FINAL_FARM = "aot",  -- ไต่ครบแล้วฟาร์มด่านนี้ยาว
     HARD_CLIMB = false,              -- ไต่ระดับ Hard ด้วย (true / false)
 
     -- ด่าน Infinite: ถึงเวฟนี้ขายตัวทิ้งทั้งหมด ให้แพ้ไวแล้วเริ่มรอบใหม่ (เก็บเพชรไว)
